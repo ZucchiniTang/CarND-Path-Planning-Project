@@ -31,7 +31,7 @@ In this project your goal is to safely navigate around a virtual highway with ot
 6. The car is able to change lanes(o)
 
 ### There is a reflection on how to generate paths
-1. The code can seperate in three part. First part: line 45~161. Second part: line 163~385. Third part: 394~518.
+1. The code can seperate in three part. First part: line 45-161. Second part: line 163-385. Third part: 394-518.
 
 2. First part: Define 5 useful functions.
    1. _distance()_: calculate Euclidean distance between two point in Cartesian x and y coordinate.
@@ -65,6 +65,6 @@ In this project your goal is to safely navigate around a virtual highway with ot
    3. calculate the shift_x and shift_y. In here, we set the yaw angle equal to 0 in every time, we use rotation matrix to transform (shift_x, shift_y) to (ptsx, ptsy).
    4. __Using _'spline.h'_ to interpolate the point in every 30m and control the speed.__
       1. _'spline.h'_ : generate spline between points(ptsx,ptsy), the distance between each ptsx[i] is 30. So we use _'spline'_ interpolate points.
-      5. Control the speed.（line 482~484）
+      2. Control the speed.（line 482~484）
          1. limit the speed to ref_vel = 49.5 (line 471~484)
          2. Using the car_speed to get x_point between the each waypoint(in each 30m). And then we use the _'s()'_ function to get y_point. Lastly, push_back every 'x_point' and 'y_point' to the 'next_x_vals' and 'next_y_vals'.
