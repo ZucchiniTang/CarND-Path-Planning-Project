@@ -1,3 +1,0 @@
-/media/qing/linux/udacity/Self-drivingCar_term3/Project1/CarND-Path-Planning-Project-master/build/CMakeFiles/edit_cache.dir
-/media/qing/linux/udacity/Self-drivingCar_term3/Project1/CarND-Path-Planning-Project-master/build/CMakeFiles/rebuild_cache.dir
-/media/qing/linux/udacity/Self-drivingCar_term3/Project1/CarND-Path-Planning-Project-master/build/CMakeFiles/path_planning.dir

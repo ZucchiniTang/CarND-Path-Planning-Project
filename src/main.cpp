@@ -44,100 +44,121 @@ string hasData(string s) {
 
 // calculate Euclidean distance between two point.
 double distance(double x1, double y1, double x2, double y2){
-	return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+  return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
 }
 
 // closest point with vehicle
 int ClosestWaypoint(double x, double y, vector<double> maps_x, vector<double> maps_y)
 {
-	double closest_init = 100000; // initial
-	int closestWaypoint = 0;
+  double closest_init = 100000; // initial
+  int closestWaypoint = 0;
 
-	for(int i = 0; i<maps_x.size();i++)
-	{
-		double closest_dist = distance(x, y, maps_x[i],maps_y[i]);
-		if(closest_dist < closest_init)
-		{
-			closest_init=closest_dist;
-			closestWaypoint = i;
-		}
-	}
-	return closestWaypoint;
+  for(int i = 0; i<maps_x.size();i++)
+  {
+    double closest_dist = distance(x, y, maps_x[i],maps_y[i]);
+    if(closest_dist < closest_init)
+    {
+      closest_init=closest_dist;
+      closestWaypoint = i;
+    }
+  }
+  return closestWaypoint;
 }
 
 // ====Start====NextWaypoint: get positive direction ???
-int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y)
+int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y, vector<double> maps_dx, vector<double> maps_dy)
 {
-	int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
-	double map_x = maps_x[closestWaypoint];
-	double map_y = maps_y[closestWaypoint];
-	double heading = atan2( (map_y-y),(map_x-x) );
-	double angle = abs(theta-heading);
-	if(angle > pi()/4)
-	{
-		closestWaypoint++;
-	}
-	return closestWaypoint;
+  int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
+
+  double map_x = maps_x[closestWaypoint];
+  double map_y = maps_y[closestWaypoint];
+  //heading vector
+  double hx = map_x-x;
+  double hy = map_y-y; 
+  //Normal vector:
+  double nx = maps_dx[closestWaypoint];
+  double ny = maps_dy[closestWaypoint];  
+  //Vector into the direction of the road (perpendicular to the normal vector)
+  double vx = -ny;
+  double vy = nx;
+  //If the inner product of v and h is positive then we are behind the waypoint so we do not need to
+  //increment closestWaypoint, otherwise we are beyond the waypoint and we need to increment closestWaypoint.
+  double inner = hx*vx+hy*vy;
+  if (inner<0.0) {
+      closestWaypoint++;
+  }
+  return closestWaypoint;
 }
 // ====End
 
 // Transfer x and y to s and d
-vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y, vector<double> maps_s)
+vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y,vector<double> maps_dx, vector<double> maps_dy)
 {
-	int next_wp = NextWaypoint(x, y, theta, maps_x, maps_y);
-	int prev_wp = next_wp - 1;
-	if(next_wp == 0)
-	{
-		prev_wp = maps_x.size()-1;
-	}
-	double n_x = maps_x[next_wp]-maps_x[prev_wp];
-	double n_y = maps_y[next_wp]-maps_y[prev_wp];	
-	double x_x = x - maps_x[prev_wp];
-	double x_y = y - maps_y[prev_wp];
-	// calculate projection value: x onto n
-	double proj_x_n = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
-	double proj_x = proj_x_n * n_x;
-	double proj_y = proj_x_n *n_y;
-	double frenet_d = distance(x_x,x_y,proj_x,proj_y);
-	// see the direction of d.  ???
-	double center_x = 1000-maps_x[prev_wp];
-	double center_y = 2000-maps_y[prev_wp];
-	double centerToPos = distance(center_x,center_y,x_x,x_y);
-	double centerToRef = distance(center_x,center_y,proj_x,proj_y);
-	if(centerToPos <= centerToRef)
-	{
-		frenet_d *= -1;
-	}
-	// calculate s.  maps_s ??? ???
-	double frenet_s = maps_s[0];
-	for(int i = 0; i < prev_wp; i++)
-	{
-		frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
-	}
-	frenet_s += distance(0,0,proj_x,proj_y);
-	return {frenet_s,frenet_d};
+  int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y, maps_dx, maps_dy);
+
+  int prev_wp;
+  prev_wp = next_wp-1;
+  if(next_wp == 0)
+  {
+    prev_wp  = maps_x.size()-1;
+  }
+
+  double n_x = maps_x[next_wp]-maps_x[prev_wp];
+  double n_y = maps_y[next_wp]-maps_y[prev_wp];
+  double x_x = x - maps_x[prev_wp];
+  double x_y = y - maps_y[prev_wp];
+
+  // find the projection of x onto n
+  double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
+  double proj_x = proj_norm*n_x;
+  double proj_y = proj_norm*n_y;
+
+  double frenet_d = distance(x_x,x_y,proj_x,proj_y);
+
+  //see if d value is positive or negative by comparing it to a center point
+
+  double center_x = 1000-maps_x[prev_wp];
+  double center_y = 2000-maps_y[prev_wp];
+  double centerToPos = distance(center_x,center_y,x_x,x_y);
+  double centerToRef = distance(center_x,center_y,proj_x,proj_y);
+
+  if(centerToPos <= centerToRef)
+  {
+    frenet_d *= -1;
+  }
+
+  // calculate s value
+  double frenet_s = 0;
+  for(int i = 0; i < prev_wp; i++)
+  {
+    frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
+  }
+
+  frenet_s += distance(0,0,proj_x,proj_y);
+
+  return {frenet_s,frenet_d};
+
 }
 
 // transform s,d to x,y
 vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
 {
-	int prev_wp = -1;
-	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
-	{
-		prev_wp++;
-	}
-	int wp2 = (prev_wp+1)%maps_x.size();
-	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
-	// the x,y,s along the segment
-	double seg_s = (s-maps_s[prev_wp]);
-	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
-	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
-	double perp_heading = heading-pi()/2;
-	double x = seg_x + d*cos(perp_heading);
-	double y = seg_y + d*sin(perp_heading);
-	return {x,y};
+  int prev_wp = -1;
+  while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
+  {
+    prev_wp++;
+  }
+  int wp2 = (prev_wp+1)%maps_x.size();
+  double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
+  // the x,y,s along the segment
+  double seg_s = (s-maps_s[prev_wp]);
+  double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
+  double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
+  double perp_heading = heading-pi()/2;
+  double x = seg_x + d*cos(perp_heading);
+  double y = seg_y + d*sin(perp_heading);
+  return {x,y};
 }  
-
 
 // Check if the SocketIO event has Json data
 int main() 
@@ -182,25 +203,26 @@ int main()
 
   //define variable lane
   int lane = 1;
-  double ref_vel= 0.0;
+  
+  int lane_change_wp = 0;
 
-
+ // My Answer: part 1.
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel]
+               &map_waypoints_dx,&map_waypoints_dy, &lane, &lane_change_wp]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     //define variable lane
-  	//int lane = 1;
-  	
-  	// reference velocity to target, depends on limits speed.
-  	
+    //int lane = 1;
+    
+    // reference velocity to target, depends on limits speed.
+    
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2') 
     {
-    	
+      
       auto s = hasData(data);
 
       if (s != "") {
@@ -233,94 +255,171 @@ int main()
           
           vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
           int prev_size = previous_path_x.size();
-
-          if(prev_size > 0)
-          {
-          	car_s = end_path_s;
-          }
-
-          bool too_close = false;
-
-          // find ref_v to use
-          for(int i = 0; i<sensor_fusion.size(); i++)
-          {
-          	float d = sensor_fusion[i][6];
-          	if(d<(2+4*lane+2) && d>(2+4*lane-2))
-          	{
-
-          		double vx = sensor_fusion[i][3];
-          		double vy = sensor_fusion[i][4];
-          		double check_speed = sqrt(vx*vx+vy*vy);
-          		double check_car_s = sensor_fusion[i][5];
-
-          		check_car_s += ((double)prev_size*.02*check_speed);
-          		//ref_vel = 49.5;
-          		if((check_car_s > car_s) && ((check_car_s-car_s)<30))
-          		{
-          			
-          			too_close = true;
-          			if(lane > 0)
-          			{
-          				lane = 0;
-          			}
-          		} 
-
-          	}
-	        }
-	        
-	        if(too_close)
-	        {
-	        ref_vel = ref_vel - 0.224;
-	        }
-	        else if(ref_vel<49.5)
-	        {
-	        ref_vel = ref_vel + 0.224;
-	        }
-	        
-
-
-          
-
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
-
-          vector<double> ptsx;
-          vector<double> ptsy;
-
-          // reference x, y, yaw states
+          int next_wp = -1;
+          double ref_vel = 49.5;
           // refer the starting point as where the car is ( or the previous point)
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
+          if(prev_size < 2)
+          {
+            next_wp = NextWaypoint(ref_x, ref_y, ref_yaw, map_waypoints_x,map_waypoints_y,map_waypoints_dx,map_waypoints_dy);
+          }
+          else
+          {
+            ref_x = previous_path_x[prev_size-1];
+            double ref_x_prev = previous_path_x[prev_size-2];
+            ref_y = previous_path_y[prev_size-1];
+            double ref_y_prev = previous_path_y[prev_size-2];
+            ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
+            next_wp = NextWaypoint(ref_x,ref_y,ref_yaw,map_waypoints_x,map_waypoints_y,map_waypoints_dx,map_waypoints_dy);
+
+            car_s = end_path_s;
+
+            car_speed = (sqrt((ref_x-ref_x_prev)*(ref_x-ref_x_prev)+(ref_y-ref_y_prev)*(ref_y-ref_y_prev))/.02)*2.237;
+          }
+
+          bool too_close = false;
+          bool change_lanes = false;
+          //bool change_line_l = false;
+          //bool change_line_r = false;
+
+          //double front_car_thres = 35.0;
+          //double back_car_thres = 10.0;
+          // find ref_v to use
+          double closestDist_s = 100000;
+          for(int i = 0; i<sensor_fusion.size(); i++)
+          {
+            float d = sensor_fusion[i][6];
+            if(d<(2+4*lane+2) && d>(2+4*lane-2))
+            {
+
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(vx*vx+vy*vy);
+              double check_car_s = sensor_fusion[i][5];
+
+              check_car_s += ((double)prev_size*.02*check_speed);
+              
+              //if((check_car_s > car_s) && ((check_car_s-car_s)<30))
+              if( (check_car_s > car_s) && ((check_car_s-car_s)<30) && ((check_car_s-car_s) < closestDist_s ))
+              {               
+                too_close = true;
+                closestDist_s = (check_car_s - car_s);
+                if((check_car_s-car_s) > 20)
+                  {               
+                    //match that cars speed
+                    ref_vel = check_speed*2.237;
+                    change_lanes = true;
+                  }
+                  else
+                  {
+                    //go slightly slower than the cars speed
+                    ref_vel = check_speed*2.237-5;
+                    change_lanes = true;
+                  }
+              }
+            }
+          }   
+          // If too_close, change lane.
+          if(change_lanes && ((next_wp-lane_change_wp)%map_waypoints_x.size() > 2) )
+          { 
+            bool changed_lanes = false;
+            if (lane!=2 && !changed_lanes)
+            {
+              bool lane_safe = true;
+              for(int i = 0; i<sensor_fusion.size(); i++)
+              {               
+                float d_nearby = sensor_fusion[i][6];
+                if(d_nearby<(2+4*(lane+1)+2) && d_nearby>(2+4*(lane+1)-2))
+                //if(lane!=0 && d_nearby<(2+4*(lane-1)+2) && d_nearby>(2+4*(lane-1)-2))
+                {
+                  double vx_n = sensor_fusion[i][3];
+                  double vy_n = sensor_fusion[i][4];
+                  double check_speed_nearby = sqrt(vx_n*vx_n+vy_n*vy_n);
+                  double check_car_s_nearby = sensor_fusion[i][5];
+                  
+                  check_car_s_nearby += ((double)prev_size*.02*check_speed_nearby);
+                  
+                  if(((check_car_s_nearby-car_s)<20) && ((check_car_s_nearby-car_s)>-20))                     
+                  {
+                    lane_safe = false;
+                  }
+                }
+              }
+              if(lane_safe)
+              {
+                changed_lanes = true;
+                lane += 1;
+                lane_change_wp = next_wp;
+              }
+            } 
+            if (lane!=0 && !changed_lanes)
+            { 
+              bool lane_safe = true;
+              for(int i = 0; i<sensor_fusion.size(); i++)
+              {               
+                float d_nearby = sensor_fusion[i][6];
+                if(d_nearby<(2+4*(lane-1)+2) && d_nearby>(2+4*(lane-1)-2))
+                {
+                  double vx_n = sensor_fusion[i][3];
+                  double vy_n = sensor_fusion[i][4];
+                  double check_speed_nearby = sqrt(vx_n*vx_n+vy_n*vy_n);
+                  double check_car_s_nearby = sensor_fusion[i][5];
+                
+                  check_car_s_nearby += ((double)prev_size*.02*check_speed_nearby);
+                  if(((check_car_s_nearby-car_s)<20) && ((check_car_s_nearby-car_s)>-20))
+                  {
+                    lane_safe = false;
+                  }
+                }
+              }
+              if(lane_safe)
+              {
+                changed_lanes = true;
+                lane -= 1;
+                lane_change_wp = next_wp;
+              }   
+              //lane = fine_optimize_lane()
+            } 
+          } 
+  
+
+         
+          // My answer: part II
+          
+          vector<double> ptsx;
+          vector<double> ptsy;
+
+          // reference x, y, yaw states
+
 
           // if previous size is almost empty
           if(prev_size < 2)
           {
-          	double prev_car_x = car_x - cos(car_yaw);
-          	double prev_car_y = car_y - sin(car_yaw);
+            double prev_car_x = car_x - cos(car_yaw);
+            double prev_car_y = car_y - sin(car_yaw);
 
-          	ptsx.push_back(prev_car_x);
-          	ptsx.push_back(car_x);
+            ptsx.push_back(prev_car_x);
+            ptsx.push_back(car_x);
 
-          	ptsy.push_back(prev_car_y);
-          	ptsy.push_back(car_y);
+            ptsy.push_back(prev_car_y);
+            ptsy.push_back(car_y);
           }
           else
           {
-          	ref_x = previous_path_x[prev_size-1];
-          	ref_y = previous_path_y[prev_size-1];
+            ref_x = previous_path_x[prev_size-1];
+            ref_y = previous_path_y[prev_size-1];
 
-          	double ref_x_prev = previous_path_x[prev_size-2];
-          	double ref_y_prev = previous_path_y[prev_size-2];
-          	ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
+            double ref_x_prev = previous_path_x[prev_size-2];
+            double ref_y_prev = previous_path_y[prev_size-2];
+            ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
 
-          	ptsx.push_back(ref_x_prev);
-          	ptsx.push_back(ref_x);
+            ptsx.push_back(ref_x_prev);
+            ptsx.push_back(ref_x);
 
-          	ptsy.push_back(ref_y_prev);
-          	ptsy.push_back(ref_y);
+            ptsy.push_back(ref_y_prev);
+            ptsy.push_back(ref_y);
           }
 
           // In Frenet add evenly 30m spaced points ahead of the starting reference
@@ -338,12 +437,12 @@ int main()
 
           for (int i = 0; i < ptsx.size(); i++)
           {
-          	// shift car, current angle = 0.
-          	double shift_x = ptsx[i] - ref_x; 
-          	double shift_y = ptsy[i] - ref_y;
+            // shift car, current angle = 0.
+            double shift_x = ptsx[i] - ref_x; 
+            double shift_y = ptsy[i] - ref_y;
 
-          	ptsx[i] = (shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
-          	ptsy[i] = (shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
+            ptsx[i] = (shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
+            ptsy[i] = (shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
           }
 
           // create spline
@@ -356,8 +455,8 @@ int main()
 
           for(int i = 0; i<previous_path_x.size(); i++)
           {
-          	next_x_vals.push_back(previous_path_x[i]);
-          	next_y_vals.push_back(previous_path_y[i]);
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
           }
 
           // control the expect speed
@@ -368,23 +467,32 @@ int main()
 
           for(int i = 0; i<= 50-previous_path_x.size(); i++)
           {
-          	double N = (target_dist/(0.02*ref_vel/2.24));
-          	double x_point = x_add_on+target_x/N;
-          	double y_point = s(x_point);
+            if(ref_vel > car_speed)
+            {
+              car_speed+=.224;
+            }
+            else if(ref_vel < car_speed)
+            {
+              car_speed-=.224;
+            }
 
-          	x_add_on = x_point;
+            double N = (target_dist/(.02*car_speed/2.24));
+            double x_point = x_add_on+target_x/N;
+            double y_point = s(x_point);
 
-          	double x_ref = x_point;
-          	double y_ref = y_point;
+            x_add_on = x_point;
 
-          	x_point = (x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw));
-          	y_point = (x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw));
+            double x_ref = x_point;
+            double y_ref = y_point;
 
-          	x_point += ref_x;
-          	y_point += ref_y;
+            x_point = (x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw));
+            y_point = (x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw));
 
-          	next_x_vals.push_back(x_point);
-          	next_y_vals.push_back(y_point);
+            x_point += ref_x;
+            y_point += ref_y;
+
+            next_x_vals.push_back(x_point);
+            next_y_vals.push_back(y_point);
           }
 
           //END
@@ -404,7 +512,9 @@ int main()
       }
     }  // end websocket if
   }); // end h.onMessage
-
+  //END
+  
+  
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
   });
